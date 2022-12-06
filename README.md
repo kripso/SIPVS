@@ -41,7 +41,7 @@
   - overenie hodnoty Type atribútu voči profilu XAdES_ZEP,
   - každý ds:Manifest element musí obsahovať práve jednu referenciu na ds:Object,
 
-- **TODO** overenie referencií v elementoch ds:Manifest:
+- **DONE** overenie referencií v elementoch ds:Manifest:
   - dereferencovanie URI, aplikovanie príslušnej ds:Transforms transformácie (pri base64 decode),
   - overenie hodnoty ds:DigestValue,
 
