@@ -1230,17 +1230,17 @@ public class App {
         String atr1 = findNode(parsedXml, "xzep:DataEnvelope").getAttributes().getNamedItem("xmlns:xzep").toString();
         String atr2 = findNode(parsedXml, "xzep:DataEnvelope").getAttributes().getNamedItem("xmlns:ds").toString();
 
-        String atr1Valid = "xmlns:xzep=\"http://www.ditec.sk/ep/signature_formats/xades_zep/v1.";
+        String atr1Valid = "xmlns:xzep=\"http://www.ditec.sk/ep/signature_formats/xades_zep/v1.0\"";
         String atr2Valid = "xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"";
 
 
-        if (atr1.contains(atr1Valid)) if (atr2.equals(atr2Valid)) {
+        if (atr1.equals(atr1Valid)) if (atr2.equals(atr2Valid)) {
             return true;
         }
 
         msgs.add(atr1);
         msgs.add(atr1Valid);
-        msgs.add(String.valueOf(atr1.contains(atr1Valid)));
+        msgs.add(String.valueOf(atr1.equals(atr1Valid)));
 
         msgs.add(atr2);
         msgs.add(atr2Valid);
