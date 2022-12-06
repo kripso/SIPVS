@@ -208,14 +208,6 @@ public class App {
                     IdSignedPropRef = idContent;
                     typeSignedPropRef = typeContent;
                 }
-
-              /*   if (idContent.contains("KeyInfo")) {
-                    IdValueExpected = idContent.replace("Reference", "");
-                    propertiesIdFound = true;
-                    break;
-                } else if () {
-
-                } */
             }
         }
 
@@ -479,8 +471,6 @@ public class App {
         //vyhladaj pre kazdu target
 
         //oba musia obsahvat atribut Target  - URI referencia na Id atribut prislusneho ds:signature elementu
-        //TODO - skontroluj obsah target, ci nie je prazdny
-         //target zbavit #
         String targetVersion = "";
         String targetProduct = "";
         if (targetVersionNode != null) {
@@ -574,23 +564,53 @@ public class App {
             return false;
         }
        
-        //TODO- kde v signedinfo je referencia na Id? 
-        //ocakavane hodnoty Id
-        String IdValueExpected = "";
-        Node signatureTimeStampNode = findNode(parsedXml, "ds:SignedInfo");
-        Node IdNodeTimeStamp = null;
-        /* if (signatureTimeStampNode != null) {
-            IdNodeTimeStamp = signatureTimeStampNode.getAttributes().getNamedItem("Id");
-            if (IdNodeTimeStamp != null) {
-                IdValueExpected = IdNodeTimeStamp.getTextContent();
-            } else {
-                msgs.add("Element xades:SignatureTimeStamp nemá atribút Id");
-                return false;
-            }
+
+        //najdenie referencii v signed info
+        //najdenie signed info
+        Node signedInfoNode = findNode(parsedXml, "ds:SignedInfo");
+        //najdenie reference elementov
+        List<Node> referenceElements = null;
+        if (signedInfoNode != null) {
+            referenceElements = findChildNodesWithName(signedInfoNode, "ds:Reference");
         } else {
-            msgs.add("Element xades:SignatureTimeStamp neexistuje.");
+            msgs.add("Element ds:SignedInfo neexistuje.");
             return false;
-        } */
+        }
+
+        if (referenceElements == null) {
+            msgs.add("Element ds:SignedIndfo neobsahuje žiadne ds:Reference elementy.");
+            return false;
+        }
+
+
+        //ocakavane hodnoty Id
+        String idContent = "";
+        String idReferenceKeyInfoExpected = "";
+        Node keyInfoRefNode = null; 
+
+        for (Node referenceElement : referenceElements) {
+            Node referenceIddNode = null;
+            referenceIddNode = referenceElement.getAttributes().getNamedItem("Id");
+
+            if (referenceIddNode != null) {
+                idContent = referenceIddNode.getTextContent();
+                if (idContent.contains("KeyInfo")) {
+                    //referencia existuje
+                    keyInfoRefNode = referenceIddNode;
+                    idReferenceKeyInfoExpected = idContent.replace("Reference", "");
+                } 
+            }
+        }
+
+        if (keyInfoRefNode == null) {
+            msgs.add("Referencia na Id KeyInfo v SignedInfo neexistuje.");
+            return false;
+        }
+
+        if (!(idReferenceKeyInfoExpected.equals(IdValueObtained))) {
+            msgs.add("Atribút Id elementu ds:KeyInfo sa nezhoduje s Id atribútom referencie v ds:SignedInfo.");
+            return false;
+        }
 
         //keyinfo ma element ds:X509Data
         Node X509DataNode = findChildNodeOf(keyInfoNode, "ds:X509Data");
@@ -634,7 +654,7 @@ public class App {
             return false;
         }
         //X509CertficateValue = X509CertificateNode.getTextContent();
-        //TODO certificate value je null???
+        //certificate value je null??? - osetrene vo funkcii
         X509Certificate certificate = generateCertificateFromString(X509CertficateValue);
         String certfIssuerName = certificate.getIssuerX500Principal().toString().replaceAll("ST=", "S=");
 		String certfSerialNumber = certificate.getSerialNumber().toString();
@@ -793,7 +813,7 @@ public class App {
                 //konecne overenie Id atributu
                 IdValueExpected = IdValueExpected.replace("#", ""); //v targete je pred Idckom este navyse #
                 if (IdValueExpected.equals(IdValueObtained)) {
-                    //return true; //TODO - najprv aj druha podmienka pre namespace musi byt splnena, az potom true
+                    //return true; - najprv aj druha podmienka pre namespace musi byt splnena, az potom true
                     IdValueIsValid = true;
                 } else {
                     msgs.add("Id atribút v ds:Signature nemá rovnakú hodnotu ako Target atribút v xades:QualifyingProperties.");
