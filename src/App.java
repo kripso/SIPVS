@@ -150,9 +150,186 @@ public class App {
     }
 
     private boolean isValidSignedInfoReferences(Document parsedXml) {
-        
+
+        //najdenie signed info
+        Node signedInfoNode = findNode(parsedXml, "ds:SignedInfo");
+        //najdenie reference elementov
+        List<Node> referenceElements = null;
+        if (signedInfoNode != null) {
+            referenceElements = findChildNodesWithName(signedInfoNode, "ds:Reference");
+        } else {
+            msgs.add("Element ds:SignedInfo neexistuje.");
+            return false;
+        }
+
+        if (referenceElements == null) {
+            msgs.add("Element ds:SignedIndfo neobsahuje žiadne ds:Reference elementy.");
+            return false;
+        }
+
+        //priprava premennych pre id a type vybranych elementov
+        String IdSignedPropRef = "";
+        String IdSignaturePropRef = "";
+        String IdKeyInfoRef = "";
+        String typeKeyInfoRef = "";
+        String typeSignaturePropRef = "";
+        String typeSignedPropRef = "";
+
+        //pozri na referenciu 
+        // ak obsahuje dany string, ziskaj ho do spravnej premennej
+        //ak moje stringy su prazdne aj po prejdeni vsetkych referencii, vypis chybu, ze neexistuje referencia
+
+        String idContent = "";
+        String typeContent = "";
+        Node referenceIddNode = null;
+        Node referenceTypeNode = null;
+        List<Node> referenceManifestElements = new ArrayList<>();;
+        for (Node referenceElement : referenceElements) {
+            referenceIddNode = referenceElement.getAttributes().getNamedItem("Id");
+            referenceTypeNode = referenceElement.getAttributes().getNamedItem("Type");
+
+            if ((referenceIddNode != null) && (referenceTypeNode != null)) {
+                idContent = referenceIddNode.getTextContent();
+                typeContent = referenceTypeNode.getTextContent();
+                if (idContent.contains("ReferenceManifestObject")) {
+                    //check reference in manifest
+                    //tychto bude viacero
+                    referenceManifestElements.add(referenceElement);
+                } else if (idContent.contains("KeyInfo")) {
+                    //referencia existuje
+                    IdKeyInfoRef = idContent;
+                    typeKeyInfoRef = typeContent;
+                } else if (idContent.contains("SignatureProperties")) {
+                    //referencia existuje
+                    IdSignaturePropRef = idContent;
+                    typeSignaturePropRef= typeContent;
+                } else if (idContent.contains("SignedProperties")) {
+                    //referencia existuje
+                    IdSignedPropRef = idContent;
+                    typeSignedPropRef = typeContent;
+                }
+
+              /*   if (idContent.contains("KeyInfo")) {
+                    IdValueExpected = idContent.replace("Reference", "");
+                    propertiesIdFound = true;
+                    break;
+                } else if () {
+
+                } */
+            }
+        }
+
+        //po prejdeni vsetkych reference elementov
+        //kontrola, ci existuju referencie (okrem manifest)
+        if (IdKeyInfoRef == "") {
+            msgs.add("V ds:SignedInfo neexistuje referencia na ds:KeyInfo element. Atribút Id neobsahuje žiadnu hodnotu.");
+            return false;
+        }
+
+        if (IdSignedPropRef == "") {
+            msgs.add("V ds:SignedInfo neexistuje referencia na ds:SignedProperties element. Atribút Id neobsahuje žiadnu hodnotu.");
+            return false;
+        }
+
+        if (IdSignaturePropRef == "") {
+            msgs.add("V ds:SignedInfo neexistuje referencia na ds:SignatureProperties element. Atribút Id neobsahuje žiadnu hodnotu.");
+            return false;
+        }
+
+        //kontrola, ci nie su prazdne type
+        if (typeKeyInfoRef == "") {
+            msgs.add("V ds:SignedInfo neexistuje referencia na ds:KeyInfo element. Atribút Type neobsahuje žiadnu hodnotu.");
+            return false;
+        }
+
+        if (typeSignedPropRef == "") {
+            msgs.add("V ds:SignedInfo neexistuje referencia na ds:SignedProperties element. Atribút Type neobsahuje žiadnu hodnotu.");
+            return false;
+        }
+
+        if (typeSignaturePropRef == "") {
+            msgs.add("V ds:SignedInfo neexistuje referencia na ds:SignatureProperties element. Atribút Type neobsahuje žiadnu hodnotu.");
+            return false;
+        }
+
+
+        //kontrola, ci su Id spravne
+        //TODO - doesnt make any sense. DataObjectType neexistuje
+        //reference id content...replace "Reference", "", potom porovnavat
+        //z xades:DataObjectType
+
+
+        //kontrola, ci su type spravne
+        //
+        String typeKeyInfoExpected = "http://www.w3.org/2000/09/xmldsig#Object";
+        String typeSignaturePropExpected = "http://www.w3.org/2000/09/xmldsig#SignatureProperties";
+        String typeSignedPropExpected = "http://uri.etsi.org/01903#SignedProperties";
+
+        if (!(typeKeyInfoExpected.equals(typeKeyInfoRef))) {
+            msgs.add("Referencia elementu ds:KeyInfo nemá správnu hodnotu atribútu Type.");
+            return false;
+        }
+
+        if (!(typeSignaturePropExpected.equals(typeSignaturePropRef))) {
+            msgs.add("Referencia elementu ds:SignatureProperties nemá správnu hodnotu atribútu Type.");
+            return false;
+        }
+
+        if (!(typeSignedPropExpected.equals(typeSignedPropRef))) {
+            msgs.add("Referencia elementu ds:SignedProperties nemá správnu hodnotu atribútu Type.");
+            return false;
+        }
+
+
+        //ziskanie manifest elementov a ich ideciek / pridat ich do zoznamu
+        NodeList manifestElements = findAllNodes(parsedXml, "ds:Manifest");
+        List<String> manifestIds = new ArrayList<String>();
+
+        for (int i = 0; i < manifestElements.getLength(); i++) {
+            Node manifestElement = manifestElements.item(i);
+            Node IdManifestNode = manifestElement.getAttributes().getNamedItem("Id");
+            if (IdManifestNode != null) {
+                manifestIds.add(IdManifestNode.getTextContent());
+            } else {
+                msgs.add("Element Manifest nemá atribút Id.");
+                return false;
+            }
+        }
+
+
+        String typeManifestExpected = "http://www.w3.org/2000/09/xmldsig#Manifest";
+        Node referenceManifestTypeNode = null;
+        for (Node referenceManifestElement : referenceManifestElements) {
+            String referenceManifestId = "";
+            String referenceManifestType = "";
+
+            referenceManifestId = referenceManifestElement.getAttributes().getNamedItem("Id").getTextContent().replace("Reference", "");
+            referenceManifestTypeNode = referenceManifestElement.getAttributes().getNamedItem("Type");
+
+            //prazdne id neexistuje - pridavalo sa, iba ak obsahuje ref v id
+            if (!(manifestIds.contains(referenceManifestId))) {
+                msgs.add("Referencia Manifestu neexistuje. Nenašlo sa zhodujúce Id.");
+                return false;
+            }
+
+            //prazdny type
+            if (referenceManifestTypeNode == null) {
+                msgs.add("Referencia Manifestu neobsahuje atribút Type.");
+                return false;
+            }
+
+            //overenie type
+            referenceManifestType = referenceManifestTypeNode.getTextContent().replace("Reference", "");
+            if (!(typeManifestExpected.equals(referenceManifestType))) {
+                msgs.add("Referencia Manifestu nemá správnu hodnotu atribútu Type.");
+                return false;
+            }
+        }
+
         return true;
     }
+
+
     private boolean isValidManifest(Document parsedXml) {
         
         return true;
