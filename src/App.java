@@ -1,28 +1,34 @@
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringWriter;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.cert.CertificateException;
+import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.CertificateNotYetValidException;
+import java.security.cert.CertificateParsingException;
+import java.security.cert.X509CRLEntry;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import javax.security.auth.x500.X500Principal;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -37,15 +43,27 @@ import org.apache.xml.security.c14n.CanonicalizationException;
 import org.apache.xml.security.c14n.Canonicalizer;
 import org.apache.xml.security.c14n.InvalidCanonicalizerException;
 import org.apache.xml.security.parser.XMLParserException;
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Sequence;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.asn1.x509.X509CertificateStructure;
+import org.bouncycastle.crypto.tls.Certificate;
+import org.bouncycastle.jce.provider.X509CertificateObject;
+import org.bouncycastle.tsp.TimeStampToken;
+import org.bouncycastle.util.Store;
+import org.bouncycastle.util.encoders.Base64;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import utils.Utils;
+
 public class App {
     public static void main(String[] args) throws Exception {
-        System.out.println("Hello, World!");
         new App().validateFiles();
     }
     Boolean valid = false;
@@ -85,9 +103,10 @@ public class App {
             for (File file : files) {
                 msgs.add("# Subor: " + file.getName());
                 if (validateFile(file)) {
-                    System.out.println("was alright");
+                    System.out.println("was right");
                     msgs.add("\n#### Subor: " + file.getName() + " má platný XADES-T podpis");
                 } else {
+                    System.out.println("was not right");
                     msgs.add("\n#### Subor: " + file.getName() + " nie je platný");
                 }
                 msgs.add("\n");
@@ -118,10 +137,11 @@ public class App {
             e.printStackTrace();
         }
     }
-
+    
     private boolean validateFile(File file) {
         Document parsedXml = buildXml(file);
-
+        if (!isValidTimestampCerfificate(parsedXml)) return false;
+        
         if (!isValidDatovaObalka(parsedXml)) return false;
 
         if (!isValidSignatureMethodAndCanonicalizationMethod(parsedXml)) return false;
@@ -144,30 +164,166 @@ public class App {
 
         if (!isValidManifest(parsedXml)) return false;
 
+        if (!isValidMessageImprint(parsedXml)) return false;
+        
         if (!isValidCertificate(parsedXml)) return false;
         
         return true;
     }
 
     private boolean isValidSignedInfoReferences(Document parsedXml) {
-        
+
         return true;
     }
     private boolean isValidManifest(Document parsedXml) {
         
         return true;
     }
-    private boolean isValidCertificate(Document parsedXml) {
-        
-        return true;
+
+    private X500Name toBouncyX500Name( X500Principal principal) {
+        String name = principal.getName();
+    
+        String[] RDN = name.split(",");
+    
+        StringBuffer buf = new StringBuffer(name.length());
+        buf.append(RDN[3]);
+        buf.append(',');
+        buf.append(RDN[1]);
+        buf.append(',');
+        buf.append(RDN[2]);
+        buf.append(',');
+        buf.append(RDN[0]);
+
+        return new X500Name(buf.toString());
     }
+
+	public boolean isValidTimestampCerfificate(Document parsedXml) {
+        var crl = Utils.getCRL();
+        if (crl == null){
+            msgs.add("could not load crl");
+            return false;
+        }
+        TimeStampToken ts_token = Utils.getTimestampToken(parsedXml);
+        
+        ArrayList<X509CertificateHolder> collection = (ArrayList<X509CertificateHolder>) ts_token.getCertificates().getMatches(null);
+
+		BigInteger serialNumToken = ts_token.getSID().getSerialNumber();
+		X500Name issuerToken = toBouncyX500Name(ts_token.getSID().getIssuer());
+        
+		X509CertificateHolder signer = null;
+		for (X509CertificateHolder certHolder : collection) {
+			if (certHolder.getSerialNumber().equals(serialNumToken) && (certHolder.getIssuer().equals(issuerToken))){
+				signer = certHolder;
+				break;
+			}
+		}
+
+		if (signer == null){
+            msgs.add("V dokumente sa nenachadza certifikat casovej peciatky.");
+            return false;
+		}
+        
+		if (!signer.isValidOn(new Date())){
+            msgs.add("Podpisový certifikát časovej pečiatky nie je platný voči aktuálnemu času.");
+            return false;
+		}
+        
+		if (crl.getRevokedCertificate(signer.getSerialNumber()) != null){
+            msgs.add("Podpisový certifikát časovej pečiatky nie je platný voči platnému poslednému CRL.");
+            return false;
+		}
+
+		return true;
+	}
+
+	public boolean isValidMessageImprint(Document parsedXml) {
+        TimeStampToken ts_token = Utils.getTimestampToken(parsedXml);
+
+		byte[] messageImprint = ts_token.getTimeStampInfo().getMessageImprintDigest();
+		String hashAlg = ts_token.getTimeStampInfo().getHashAlgorithm().getAlgorithm().toString();
+		Node signatureValueNode = null;
+        signatureValueNode = findNode(parsedXml, "ds:SignatureValue");
+
+		if (signatureValueNode == null){
+            msgs.add("Element ds:SignatureValue nenájdený.");
+            return false;
+        }
+
+		byte[] signatureValue = Base64.decode(signatureValueNode.getTextContent().getBytes());
+
+		MessageDigest messageDigest = null;
+		try {
+			messageDigest = MessageDigest.getInstance(hashAlg, "SUN");
+		} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+			msgs.add("Nepodporovaný algoritmus v message digest.");
+            return false;
+        }
+
+		if (!Arrays.equals(messageImprint, messageDigest.digest(signatureValue))){
+			msgs.add("MessageImprint z časovej pečiatky a podpis ds:SignatureValue sa nezhodujú.");
+            return false;
+        }
+
+        return true;
+	}
+
+	public boolean isValidCertificate(Document parsedXml) {
+        var crl = Utils.getCRL();
+        if (crl == null){
+            msgs.add("could not load crl");
+        }
+        TimeStampToken ts_token = Utils.getTimestampToken(parsedXml);
+        
+		Node certificateNode = null;
+
+        certificateNode = findNode(parsedXml, "ds:X509Certificate");
+		
+
+		if (certificateNode == null){
+			msgs.add("Element ds:X509Certificate nenájdený.");
+		}
+
+		X509CertificateObject cert = null;
+		ASN1InputStream asn1is = null;
+
+		try {
+			asn1is = new ASN1InputStream(new ByteArrayInputStream(Base64.decode(certificateNode.getTextContent())));
+			ASN1Sequence sq = (ASN1Sequence) asn1is.readObject();
+			cert = new X509CertificateObject(X509CertificateStructure.getInstance(sq));
+		} catch (IOException | CertificateParsingException e) {
+			e.printStackTrace();
+		} finally {
+			if (asn1is != null) {
+				try {
+					asn1is.close();
+				} catch (IOException e) {
+					msgs.add("Nie je možné prečítať certifikát dokumentu.");
+				}
+			}
+		}
+
+		try {
+			cert.checkValidity(ts_token.getTimeStampInfo().getGenTime());
+		} catch (CertificateExpiredException e) {
+			msgs.add("Certifikát dokumentu bol pri podpise expirovaný.");
+		} catch (CertificateNotYetValidException e) {
+			msgs.add("Certifikát dokumentu ešte nebol platný v čase podpisovania.");
+		}
+
+		X509CRLEntry entry = crl.getRevokedCertificate(cert.getSerialNumber());
+		if (entry != null && entry.getRevocationDate().before(ts_token.getTimeStampInfo().getGenTime())) {
+			msgs.add("Certifikát bol zrušený v čase podpisovania.");
+		}
+
+		return true;
+	}
 
     private boolean isValidSignaturePropertiesContent(Document parsedXml) {
 
         //najst ds:SignatureProperties element (ma byt ulozeny pod ds:Object)
         Node signatureNode = findNode(parsedXml, "ds:Signature");
         NodeList objectElements = findAllNodes(parsedXml, "ds:Object");
-       // List<Node> objectElements = findChildNodesWithName(signatureNode, "ds:Object");
+        // List<Node> objectElements = findChildNodesWithName(signatureNode, "ds:Object");
         Node signaturePropertiesNode = null;
         //hladam element signatureProperties pod ds:Object
         if (objectElements == null) {
@@ -753,7 +909,7 @@ public class App {
         }
 
 
-        byte[] decodedSignatureValueBytes = Base64.getDecoder().decode(signatureValueBytes);
+        byte[] decodedSignatureValueBytes = Base64.decode(signatureValueBytes);
 
         boolean verificationResult = false;
 
@@ -778,7 +934,7 @@ public class App {
         X509Certificate cert = null;
         try {
             cf = CertificateFactory.getInstance("X.509");
-            cert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(Base64.getDecoder().decode(x509CertficateValue)));
+            cert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(Base64.decode(x509CertficateValue)));
         } catch (CertificateException e) {
             msgs.add("Nepodarilo sa vytvorit cerfikat " + e);
             throw new RuntimeException(e);
@@ -868,7 +1024,7 @@ public class App {
                 msgs.add("Neznamy digest algoritmus");
                 return false;
             }
-            String actualDigestValue = new String(Base64.getEncoder().encode(messageDigest.digest(manifestElementBytes)));
+            String actualDigestValue = new String(Base64.encode(messageDigest.digest(manifestElementBytes)));
 
 
             if (!expectedDigestValue.equals(actualDigestValue)) {
