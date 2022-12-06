@@ -41,15 +41,15 @@ Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-200103151" Algorithm="http://w
 #### Subor: 10XadesT.xml nie je platný 
 
  # Subor: 11XadesT.xml 
-Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:ProductInfos. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:SignatureVersion. Element nebol v dokumente najdeny 
-#### Subor: 11XadesT.xml má platný XADES-T podpis 
+Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:ProductInfos. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:SignatureVersion. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:Manifest. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:Manifest. Element nebol v dokumente najdeny Hodnota ds:DigestValue elementu ds:Reference sa nezhoduje s hash hodnotou elementu ds:Manifest. Koniec manifestu, potrebne elementy nenajdene 
+#### Subor: 11XadesT.xml nie je platný 
 
  # Subor: 12XadesT.xml 
-Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:ProductInfos. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:SignatureVersion. Element nebol v dokumente najdeny 
+Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:ProductInfos. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:SignatureVersion. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:Manifest. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:Manifest. Element nebol v dokumente najdeny 
 #### Subor: 12XadesT.xml má platný XADES-T podpis 
 
  # Subor: XadesT.xml 
-Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:ProductInfos. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:SignatureVersion. Element nebol v dokumente najdeny 
+Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:SignatureProperties. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:ProductInfos. Element nebol v dokumente najdeny Chyba pri ziskavani elementu xzep:SignatureVersion. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:Manifest. Element nebol v dokumente najdeny Chyba pri ziskavani elementu ds:Manifest. Element nebol v dokumente najdeny 
 #### Subor: XadesT.xml má platný XADES-T podpis 
 
  

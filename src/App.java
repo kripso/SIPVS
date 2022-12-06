@@ -67,6 +67,7 @@ public class App {
     public static void main(String[] args) throws Exception {
         new App().validateFiles();
     }
+
     Boolean valid = false;
 
     ArrayList<String> msgs = new ArrayList<>();
@@ -86,6 +87,7 @@ public class App {
     }
 
     private static final Map<String, String> TRANSORM_ALG;
+
     static {
         TRANSORM_ALG = new HashMap<String, String>();
         TRANSORM_ALG.put("http://www.w3.org/TR/2001/REC-xml-c14n-20010315", "REC");
@@ -145,11 +147,11 @@ public class App {
             e.printStackTrace();
         }
     }
-    
+
     private boolean validateFile(File file) {
         Document parsedXml = buildXml(file);
         if (!isValidTimestampCerfificate(parsedXml)) return false;
-        
+
         if (!isValidDatovaObalka(parsedXml)) return false;
 
         if (!isValidSignatureMethodAndCanonicalizationMethod(parsedXml)) return false;
@@ -167,15 +169,18 @@ public class App {
         if (!isValidKeyInfoContent(parsedXml)) return false;
 
         if (!isValidSignaturePropertiesContent(parsedXml)) return false;
-        
+
         if (!isValidSignedInfoReferences(parsedXml)) return false;
 
         if (!isValidManifest(parsedXml)) return false;
 
         if (!isValidMessageImprint(parsedXml)) return false;
-        
+
         if (!isValidCertificate(parsedXml)) return false;
-        
+
+        if (!isValidManifestElementsReferences(parsedXml)) return false;
+
+
         return true;
     }
 
@@ -183,35 +188,36 @@ public class App {
 
         return true;
     }
+
     private boolean isValidManifest(Document parsedXml) {
         NodeList referencesElements = findAllNodes(parsedXml, "ds:Manifest");
         for (int i = 0; i < referencesElements.getLength(); i++) {
             Node referenceNode = referencesElements.item(i);
-        
-			 // každý ds:Manifest element musí mať Id atribút,
-             Node IdNode = null;
-             String IdValueObtained = "";
-             IdNode = referenceNode.getAttributes().getNamedItem("Id");
-             
-             //ziskane hodnoty
-             if (IdNode != null) {
-                 IdValueObtained = IdNode.getTextContent();
-             } else {
-                 msgs.add("Element ds:Manifest nemá atribút Id");
-                 return false;
-             }
-			
-			// každý ds:Manifest element musí obsahovať práve jednu referenciu na ds:Object
-            
-            List<Node> dsObj = findChildNodesWithName(referenceNode, "ds:Reference");
-            
-			if (dsObj.size() != 1) {
-				msgs.add("ds:Manifest element neobsahuje prave jednu referenciu na objekt");
+
+            // každý ds:Manifest element musí mať Id atribút,
+            Node IdNode = null;
+            String IdValueObtained = "";
+            IdNode = referenceNode.getAttributes().getNamedItem("Id");
+
+            //ziskane hodnoty
+            if (IdNode != null) {
+                IdValueObtained = IdNode.getTextContent();
+            } else {
+                msgs.add("Element ds:Manifest nemá atribút Id");
                 return false;
-			} else {
+            }
+
+            // každý ds:Manifest element musí obsahovať práve jednu referenciu na ds:Object
+
+            List<Node> dsObj = findChildNodesWithName(referenceNode, "ds:Reference");
+
+            if (dsObj.size() != 1) {
+                msgs.add("ds:Manifest element neobsahuje prave jednu referenciu na objekt");
+                return false;
+            } else {
                 Node temp = dsObj.get(0);
                 String uri_obj = temp.getAttributes().getNamedItem("Type").getTextContent();
-                if(!uri_obj.equals("http://www.w3.org/2000/09/xmldsig#Object")) {
+                if (!uri_obj.equals("http://www.w3.org/2000/09/xmldsig#Object")) {
                     msgs.add("ds:Manifest nema referenciu na objekt");
                     return false;
                 }
@@ -219,7 +225,7 @@ public class App {
 
             List<Node> transformsElements = findChildNodesWithName(referenceNode, "ds:Transforms");
             if (transformsElements.size() == 1) {
-                List<Node> transformElements = findChildNodesWithName(transformsElements.get(0), "ds:Transform"); 
+                List<Node> transformElements = findChildNodesWithName(transformsElements.get(0), "ds:Transform");
                 String transformMethod = null;
                 if (transformElements != null) {
                     transformMethod = transformElements.get(0).getAttributes().getNamedItem("Algorithm").getTextContent();
@@ -238,7 +244,7 @@ public class App {
             }
 
             List<Node> digestMethodElement = findChildNodesWithName(referenceNode, "ds:DigestMethod");
-            if (digestMethodElement.size() == 1 ) {
+            if (digestMethodElement.size() == 1) {
                 String digestMethod = null;
                 digestMethod = digestMethodElement.get(0).getAttributes().getNamedItem("Algorithm").getTextContent();
                 digestMethod = DIGEST_ALG.get(digestMethod);
@@ -250,16 +256,16 @@ public class App {
                 msgs.add("reference Node neobsahuje ds:DigestMethod");
                 return false;
             }
-            
-		}
+
+        }
         return true;
     }
 
-    private X500Name toBouncyX500Name( X500Principal principal) {
+    private X500Name toBouncyX500Name(X500Principal principal) {
         String name = principal.getName();
-    
+
         String[] RDN = name.split(",");
-    
+
         StringBuffer buf = new StringBuffer(name.length());
         buf.append(RDN[3]);
         buf.append(',');
@@ -272,126 +278,126 @@ public class App {
         return new X500Name(buf.toString());
     }
 
-	public boolean isValidTimestampCerfificate(Document parsedXml) {
+    public boolean isValidTimestampCerfificate(Document parsedXml) {
         var crl = Utils.getCRL();
-        if (crl == null){
+        if (crl == null) {
             msgs.add("could not load crl");
             return false;
         }
         TimeStampToken ts_token = Utils.getTimestampToken(parsedXml);
-        
+
         ArrayList<X509CertificateHolder> collection = (ArrayList<X509CertificateHolder>) ts_token.getCertificates().getMatches(null);
 
-		BigInteger serialNumToken = ts_token.getSID().getSerialNumber();
-		X500Name issuerToken = toBouncyX500Name(ts_token.getSID().getIssuer());
-        
-		X509CertificateHolder signer = null;
-		for (X509CertificateHolder certHolder : collection) {
-			if (certHolder.getSerialNumber().equals(serialNumToken) && (certHolder.getIssuer().equals(issuerToken))){
-				signer = certHolder;
-				break;
-			}
-		}
+        BigInteger serialNumToken = ts_token.getSID().getSerialNumber();
+        X500Name issuerToken = toBouncyX500Name(ts_token.getSID().getIssuer());
 
-		if (signer == null){
+        X509CertificateHolder signer = null;
+        for (X509CertificateHolder certHolder : collection) {
+            if (certHolder.getSerialNumber().equals(serialNumToken) && (certHolder.getIssuer().equals(issuerToken))) {
+                signer = certHolder;
+                break;
+            }
+        }
+
+        if (signer == null) {
             msgs.add("V dokumente sa nenachadza certifikat casovej peciatky.");
             return false;
-		}
-        
-		if (!signer.isValidOn(new Date())){
+        }
+
+        if (!signer.isValidOn(new Date())) {
             msgs.add("Podpisový certifikát časovej pečiatky nie je platný voči aktuálnemu času.");
             return false;
-		}
-        
-		if (crl.getRevokedCertificate(signer.getSerialNumber()) != null){
+        }
+
+        if (crl.getRevokedCertificate(signer.getSerialNumber()) != null) {
             msgs.add("Podpisový certifikát časovej pečiatky nie je platný voči platnému poslednému CRL.");
-            return false;
-		}
-
-		return true;
-	}
-
-	public boolean isValidMessageImprint(Document parsedXml) {
-        TimeStampToken ts_token = Utils.getTimestampToken(parsedXml);
-
-		byte[] messageImprint = ts_token.getTimeStampInfo().getMessageImprintDigest();
-		String hashAlg = ts_token.getTimeStampInfo().getHashAlgorithm().getAlgorithm().toString();
-		Node signatureValueNode = null;
-        signatureValueNode = findNode(parsedXml, "ds:SignatureValue");
-
-		if (signatureValueNode == null){
-            msgs.add("Element ds:SignatureValue nenájdený.");
-            return false;
-        }
-
-		byte[] signatureValue = Base64.decode(signatureValueNode.getTextContent().getBytes());
-
-		MessageDigest messageDigest = null;
-		try {
-			messageDigest = MessageDigest.getInstance(hashAlg, "SUN");
-		} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
-			msgs.add("Nepodporovaný algoritmus v message digest.");
-            return false;
-        }
-
-		if (!Arrays.equals(messageImprint, messageDigest.digest(signatureValue))){
-			msgs.add("MessageImprint z časovej pečiatky a podpis ds:SignatureValue sa nezhodujú.");
             return false;
         }
 
         return true;
-	}
+    }
 
-	public boolean isValidCertificate(Document parsedXml) {
+    public boolean isValidMessageImprint(Document parsedXml) {
+        TimeStampToken ts_token = Utils.getTimestampToken(parsedXml);
+
+        byte[] messageImprint = ts_token.getTimeStampInfo().getMessageImprintDigest();
+        String hashAlg = ts_token.getTimeStampInfo().getHashAlgorithm().getAlgorithm().toString();
+        Node signatureValueNode = null;
+        signatureValueNode = findNode(parsedXml, "ds:SignatureValue");
+
+        if (signatureValueNode == null) {
+            msgs.add("Element ds:SignatureValue nenájdený.");
+            return false;
+        }
+
+        byte[] signatureValue = Base64.decode(signatureValueNode.getTextContent().getBytes());
+
+        MessageDigest messageDigest = null;
+        try {
+            messageDigest = MessageDigest.getInstance(hashAlg, "SUN");
+        } catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+            msgs.add("Nepodporovaný algoritmus v message digest.");
+            return false;
+        }
+
+        if (!Arrays.equals(messageImprint, messageDigest.digest(signatureValue))) {
+            msgs.add("MessageImprint z časovej pečiatky a podpis ds:SignatureValue sa nezhodujú.");
+            return false;
+        }
+
+        return true;
+    }
+
+    public boolean isValidCertificate(Document parsedXml) {
         var crl = Utils.getCRL();
-        if (crl == null){
+        if (crl == null) {
             msgs.add("could not load crl");
         }
         TimeStampToken ts_token = Utils.getTimestampToken(parsedXml);
-        
-		Node certificateNode = null;
+
+        Node certificateNode = null;
 
         certificateNode = findNode(parsedXml, "ds:X509Certificate");
-		
 
-		if (certificateNode == null){
-			msgs.add("Element ds:X509Certificate nenájdený.");
-		}
 
-		X509CertificateObject cert = null;
-		ASN1InputStream asn1is = null;
+        if (certificateNode == null) {
+            msgs.add("Element ds:X509Certificate nenájdený.");
+        }
 
-		try {
-			asn1is = new ASN1InputStream(new ByteArrayInputStream(Base64.decode(certificateNode.getTextContent())));
-			ASN1Sequence sq = (ASN1Sequence) asn1is.readObject();
-			cert = new X509CertificateObject(X509CertificateStructure.getInstance(sq));
-		} catch (IOException | CertificateParsingException e) {
-			e.printStackTrace();
-		} finally {
-			if (asn1is != null) {
-				try {
-					asn1is.close();
-				} catch (IOException e) {
-					msgs.add("Nie je možné prečítať certifikát dokumentu.");
-				}
-			}
-		}
+        X509CertificateObject cert = null;
+        ASN1InputStream asn1is = null;
 
-		try {
-			cert.checkValidity(ts_token.getTimeStampInfo().getGenTime());
-		} catch (CertificateExpiredException e) {
-			msgs.add("Certifikát dokumentu bol pri podpise expirovaný.");
-		} catch (CertificateNotYetValidException e) {
-			msgs.add("Certifikát dokumentu ešte nebol platný v čase podpisovania.");
-		}
+        try {
+            asn1is = new ASN1InputStream(new ByteArrayInputStream(Base64.decode(certificateNode.getTextContent())));
+            ASN1Sequence sq = (ASN1Sequence) asn1is.readObject();
+            cert = new X509CertificateObject(X509CertificateStructure.getInstance(sq));
+        } catch (IOException | CertificateParsingException e) {
+            e.printStackTrace();
+        } finally {
+            if (asn1is != null) {
+                try {
+                    asn1is.close();
+                } catch (IOException e) {
+                    msgs.add("Nie je možné prečítať certifikát dokumentu.");
+                }
+            }
+        }
 
-		X509CRLEntry entry = crl.getRevokedCertificate(cert.getSerialNumber());
-		if (entry != null && entry.getRevocationDate().before(ts_token.getTimeStampInfo().getGenTime())) {
-			msgs.add("Certifikát bol zrušený v čase podpisovania.");
-		}
+        try {
+            cert.checkValidity(ts_token.getTimeStampInfo().getGenTime());
+        } catch (CertificateExpiredException e) {
+            msgs.add("Certifikát dokumentu bol pri podpise expirovaný.");
+        } catch (CertificateNotYetValidException e) {
+            msgs.add("Certifikát dokumentu ešte nebol platný v čase podpisovania.");
+        }
 
-		return true;
-	}
+        X509CRLEntry entry = crl.getRevokedCertificate(cert.getSerialNumber());
+        if (entry != null && entry.getRevocationDate().before(ts_token.getTimeStampInfo().getGenTime())) {
+            msgs.add("Certifikát bol zrušený v čase podpisovania.");
+        }
+
+        return true;
+    }
 
     private boolean isValidSignaturePropertiesContent(Document parsedXml) {
 
@@ -419,13 +425,13 @@ public class App {
             }
         }
 
-        if (propertiesFound == false)  {
+        if (propertiesFound == false) {
             msgs.add("Element ds:SignatureProperties sa nenachádza v žiadnom ds:Object elemente.");
             return false;
         }
-        
+
         //overenie Id
-/*         element ds:SignatureProperties musí byť referencovany z príslušného ds:Reference elementu v rámci ds:SignedInfo.  */
+        /*         element ds:SignatureProperties musí byť referencovany z príslušného ds:Reference elementu v rámci ds:SignedInfo.  */
 
         Node IdNode = null;
         String IdValueObtained = "";
@@ -471,7 +477,7 @@ public class App {
             }
         }
 
-        if (propertiesIdFound == false)  {
+        if (propertiesIdFound == false) {
             msgs.add("Element ds:SignatureProperties nie je referencovaný v žiadnom ds:Reference (Id).");
             return false;
         }
@@ -534,7 +540,7 @@ public class App {
 
         //oba musia obsahvat atribut Target  - URI referencia na Id atribut prislusneho ds:signature elementu
         //TODO - skontroluj obsah target, ci nie je prazdny
-         //target zbavit #
+        //target zbavit #
         String targetVersion = "";
         String targetProduct = "";
         if (targetVersionNode != null) {
@@ -564,8 +570,7 @@ public class App {
             return false;
         }
 
-        
-       
+
         //
         Node IdSignatureNode = null;
         String IdSignatureValueExpected = "";
@@ -597,7 +602,7 @@ public class App {
             msgs.add("Element ds:Signature nemá atribút Id");
             return false;
         }
-        
+
         return false;
     }
 
@@ -615,8 +620,8 @@ public class App {
             return false;
         }
 
-         //id atribut v keyinfo, referencia v elemente ds:SignedInfo
-         //ziskane hodnoty
+        //id atribut v keyinfo, referencia v elemente ds:SignedInfo
+        //ziskane hodnoty
         Node IdNode = null;
         String IdValueObtained = "";
         IdNode = keyInfoNode.getAttributes().getNamedItem("Id");
@@ -627,7 +632,7 @@ public class App {
             msgs.add("Element ds:KeyInfo nemá atribút Id");
             return false;
         }
-       
+
         //TODO- kde v signedinfo je referencia na Id? 
         //ocakavane hodnoty Id
         String IdValueExpected = "";
@@ -691,8 +696,8 @@ public class App {
         //TODO certificate value je null???
         X509Certificate certificate = generateCertificateFromString(X509CertficateValue);
         String certfIssuerName = certificate.getIssuerX500Principal().toString().replaceAll("ST=", "S=");
-		String certfSerialNumber = certificate.getSerialNumber().toString();
-		String certfSubjectName = certificate.getSubjectX500Principal().toString();
+        String certfSerialNumber = certificate.getSerialNumber().toString();
+        String certfSubjectName = certificate.getSubjectX500Principal().toString();
 
         //issuer a subject sedi s certificate
         //if (xIssuerNameElement.getTextContent().equals(certifIssuerName) == false)
@@ -797,7 +802,7 @@ public class App {
 
     }
 
-    
+
     private boolean isValidSignatureElements(Document parsedXml) {
         //        parsedXml.getDocumentURI()
 /* 
@@ -876,12 +881,12 @@ public class App {
             msgs.add("Element ds:Signature nemá atribút xmlns:ds");
             return false;
         }
-        
+
         if (namespaceValueObtained != "") {
             if (namespaceValueObtained.equals(namespaceExpected)) {
                 if (IdValueIsValid == true) {
                     return true;
-                } 
+                }
             } else {
                 msgs.add("Namespace xmlns:ds v ds:Signature nemá správnu hodnotu.");
                 return false;
@@ -891,9 +896,8 @@ public class App {
             return false;
         }
 
-		return false;
+        return false;
     }
-
 
 
     private boolean isValidSignedInfoAndKeyInfo(Document parsedXml) {
@@ -927,7 +931,7 @@ public class App {
             try {
                 canonicalizer.canonicalize(signedInfoElementBytes, stream, true);
                 signedInfoElementBytes = stream.toByteArray();
-            } catch ( IOException | CanonicalizationException | XMLParserException e) {
+            } catch (IOException | CanonicalizationException | XMLParserException e) {
                 throw new RuntimeException(e);
             }
         } catch (InvalidCanonicalizerException e) {
@@ -1129,15 +1133,34 @@ public class App {
         return result.getWriter().toString();
     }
 
-    private Node findByAttributeValue(Document parsedXml, String elementName, String atribudeName, String AttributeValue) {
+    private Node findByAttributeValue(Document parsedXml, String elementName, String atributeName, String AttributeValue) {
         NodeList nodeList = findAllNodes(parsedXml, elementName);
         for (int i = 0; i < nodeList.getLength(); i++) {
             Node element = nodeList.item(i);
             NamedNodeMap atrNodes = element.getAttributes();
             for (int j = 0; j < atrNodes.getLength(); j++) {
                 Node atr = atrNodes.item(i);
-                if (atribudeName.equals(atr.getNodeName())) {
+                if (atributeName.equals(atr.getNodeName())) {
                     if (AttributeValue.substring(1).equals(atr.getTextContent())) {
+                        return element;
+                    }
+                }
+
+            }
+        }
+
+        return null;
+    }
+
+    private Node findByAttributeValue2(Document parsedXml, String elementName, String atributeName, String AttributeValue) {
+        NodeList nodeList = findAllNodes(parsedXml, elementName);
+        for (int i = 0; i < nodeList.getLength(); i++) {
+            Node element = nodeList.item(i);
+            NamedNodeMap atrNodes = element.getAttributes();
+            for (int j = 0; j < atrNodes.getLength(); j++) {
+                Node atr = atrNodes.item(i);
+                if (atributeName.equals(atr.getNodeName())) {
+                    if (AttributeValue.equals(atr.getTextContent())) {
                         return element;
                     }
                 }
@@ -1322,5 +1345,114 @@ public class App {
             throw new RuntimeException(e);
         }
         return files;
+    }
+
+    public boolean isValidManifestElementsReferences(Document parsedXml) {
+        Node signatureNode = findNode(parsedXml, "ds:Signature");
+        List<Node> objectNodeList = findChildNodesWithName(signatureNode, "ds:Object");
+
+        for (Node objectNode: objectNodeList) {
+            Node manifestNode = null;
+            if (objectNode != null) {
+                manifestNode = findChildNodeOf(objectNode, "ds:Manifest");
+            } else {
+               continue;
+            }
+
+            List<Node> referenceNodeList = null;
+            if (manifestNode != null) {
+                referenceNodeList = findChildNodesWithName(manifestNode, "ds:Reference");
+            } else {
+                continue;
+            }
+
+            for (int i = 0; i < referenceNodeList.size(); i++) {
+
+                Node referenceNode = referenceNodeList.get(i);
+                String uri = referenceNode.getAttributes().getNamedItem("URI").getTextContent().substring(1);
+                Node rootObjectNode = findByAttributeValue2(parsedXml, "ds:Object", "Id", uri);
+
+                if (rootObjectNode == null) {
+                    msgs.add("Object s uri v ID neexistuje");
+                    return false;
+                }
+
+                Node digestValueNode = findChildNodeOf(referenceNode, "ds:DigestValue");
+                Node digestMethodNode = findChildNodeOf(referenceNode, "ds:DigestMethod");
+
+                String digestMethod = null;
+                if (digestMethodNode != null) {
+                    digestMethod = digestMethodNode.getAttributes().getNamedItem("Algorithm").getTextContent();
+                } else {
+                    msgs.add("Digest method nema algorithm");
+                    return false;
+                }
+
+                digestMethod = DIGEST_ALG.get(digestMethod);
+
+                List<Node> transformsNodeList = findChildNodesWithName(referenceNode, "ds:Transforms");
+
+                for (Node transformsNode : transformsNodeList) {
+
+                    Node transformNode = findChildNodeOf(transformsNode, "ds:Transform");
+
+                    String transformMethod = null;
+                    if (transformNode != null) {
+                        transformMethod = transformNode.getAttributes().getNamedItem("Algorithm").getTextContent();
+                    } else {
+                        msgs.add("Transform nema algorithm");
+                        return false;
+                    }
+
+                    byte[] objectElementBytes = null;
+
+                    String xmlNode = fromElementToString(rootObjectNode);
+                    objectElementBytes = xmlNode.getBytes();
+
+                    if ("http://www.w3.org/TR/2001/REC-xml-c14n-20010315".equals(transformMethod)) {
+
+                        try {
+                            Canonicalizer canonicalizer = Canonicalizer.getInstance(transformMethod);
+                            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                            canonicalizer.canonicalize(objectElementBytes, stream, true);
+                            objectElementBytes = stream.toByteArray();
+
+                        } catch (InvalidCanonicalizerException | CanonicalizationException |
+                                 IOException | XMLParserException e) {
+
+                            throw new RuntimeException(e);
+                        }
+                    }
+
+                    if ("http://www.w3.org/2000/09/xmldsig#base64".equals(transformMethod)) {
+
+                        objectElementBytes = Base64.decode(objectElementBytes);
+                    }
+
+                    MessageDigest messageDigest = null;
+                    try {
+                        messageDigest = MessageDigest.getInstance(digestMethod);
+
+                    } catch (NoSuchAlgorithmException e) {
+
+                        throw new RuntimeException(e);
+                    }
+
+
+                    String actualDigestValue = new String(Base64.encode(messageDigest.digest(objectElementBytes)));
+                    String expectedDigestValue = digestValueNode.getTextContent();
+
+                    if (expectedDigestValue.equals(actualDigestValue) == false) {
+
+                        msgs.add("Hodnota ds:DigestValue elementu ds:Reference sa nezhoduje s hash hodnotou elementu ds:Manifest.");
+
+                    } else {
+                        return true;
+                    }
+                }
+            }
+        }
+        msgs.add("Koniec manifestu, potrebne elementy nenajdene");
+        return false;
     }
 }
