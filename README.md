@@ -55,5 +55,5 @@
 -   overenie platnosti podpisového certifikátu časovej pečiatky voči času UtcNow a voči platnému poslednému CRL.
 -   overenie MessageImprint z časovej pečiatky voči podpisu ds:SignatureValue
 
-**TODO** Overenie platnosti podpisového certifikátu:
+**DONE** Overenie platnosti podpisového certifikátu:
 -   overenie platnosti podpisového certifikátu dokumentu voči času T z časovej pečiatky a voči platnému poslednému CRL.
