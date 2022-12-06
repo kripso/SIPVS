@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import javax.print.event.PrintJobListener;
 import javax.security.auth.x500.X500Principal;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -82,6 +83,13 @@ public class App {
         DIGEST_ALG.put("http://www.w3.org/2001/04/xmlenc#sha256", "SHA-256");
         DIGEST_ALG.put("http://www.w3.org/2001/04/xmldsig-more#sha384", "SHA-384");
         DIGEST_ALG.put("http://www.w3.org/2001/04/xmlenc#sha512", "SHA-512");
+    }
+
+    private static final Map<String, String> TRANSORM_ALG;
+    static {
+        TRANSORM_ALG = new HashMap<String, String>();
+        TRANSORM_ALG.put("http://www.w3.org/TR/2001/REC-xml-c14n-20010315", "REC");
+        TRANSORM_ALG.put("http://www.w3.org/2000/09/xmldsig#base64", "base64");
     }
 
     private static final Map<String, String> SIGN_ALG;
@@ -176,7 +184,74 @@ public class App {
         return true;
     }
     private boolean isValidManifest(Document parsedXml) {
+        NodeList referencesElements = findAllNodes(parsedXml, "ds:Manifest");
+        for (int i = 0; i < referencesElements.getLength(); i++) {
+            Node referenceNode = referencesElements.item(i);
         
+			 // každý ds:Manifest element musí mať Id atribút,
+             Node IdNode = null;
+             String IdValueObtained = "";
+             IdNode = referenceNode.getAttributes().getNamedItem("Id");
+             
+             //ziskane hodnoty
+             if (IdNode != null) {
+                 IdValueObtained = IdNode.getTextContent();
+             } else {
+                 msgs.add("Element ds:Manifest nemá atribút Id");
+                 return false;
+             }
+			
+			// každý ds:Manifest element musí obsahovať práve jednu referenciu na ds:Object
+            
+            List<Node> dsObj = findChildNodesWithName(referenceNode, "ds:Reference");
+            
+			if (dsObj.size() != 1) {
+				msgs.add("ds:Manifest element neobsahuje prave jednu referenciu na objekt");
+                return false;
+			} else {
+                Node temp = dsObj.get(0);
+                String uri_obj = temp.getAttributes().getNamedItem("Type").getTextContent();
+                if(!uri_obj.equals("http://www.w3.org/2000/09/xmldsig#Object")) {
+                    msgs.add("ds:Manifest nema referenciu na objekt");
+                    return false;
+                }
+            }
+
+            List<Node> transformsElements = findChildNodesWithName(referenceNode, "ds:Transforms");
+            if (transformsElements.size() == 1) {
+                List<Node> transformElements = findChildNodesWithName(transformsElements.get(0), "ds:Transform"); 
+                String transformMethod = null;
+                if (transformElements != null) {
+                    transformMethod = transformElements.get(0).getAttributes().getNamedItem("Algorithm").getTextContent();
+                } else {
+                    msgs.add("reference Node neobsahuje ds:Transform");
+                    return false;
+                }
+                transformMethod = TRANSORM_ALG.get(transformMethod);
+                if (transformMethod == null) {
+                    msgs.add("ds:Transform s nepodporovaným algoritmom");
+                    return false;
+                }
+            } else {
+                msgs.add("reference Node neobsahuje ds:Transforms");
+                return false;
+            }
+
+            List<Node> digestMethodElement = findChildNodesWithName(referenceNode, "ds:DigestMethod");
+            if (digestMethodElement.size() == 1 ) {
+                String digestMethod = null;
+                digestMethod = digestMethodElement.get(0).getAttributes().getNamedItem("Algorithm").getTextContent();
+                digestMethod = DIGEST_ALG.get(digestMethod);
+                if (digestMethod == null) {
+                    msgs.add("ds:DigestMethod s nepodporovaným algoritmom");
+                    return false;
+                }
+            } else {
+                msgs.add("reference Node neobsahuje ds:DigestMethod");
+                return false;
+            }
+            
+		}
         return true;
     }
 
