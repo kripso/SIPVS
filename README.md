@@ -18,7 +18,7 @@
   - **DONE** musí mať Id atribút,
   - **DONE** musí mať špecifikovaný namespace xmlns:ds,
 - Asi **DONE** 4.3.2 – overit - ds:SignatureValue element obsahuje skutočnú hodnotu elektronického podpisu a musí byť kódovaný v base64. ds:SignatureValue – musí mať Id atribút,
-- **TODO** overenie existencie referencií v ds:SignedInfo a hodnôt atribútov Id a Type voči profilu XAdES_ZEP pre:
+- **Almost DONE* overenie existencie referencií v ds:SignedInfo a hodnôt atribútov Id a Type voči profilu XAdES_ZEP pre:
   - ds:KeyInfo element,
   - ds:SignatureProperties element,
   - xades:SignedProperties element,
