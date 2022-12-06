@@ -25,7 +25,7 @@
   - všetky ostatné referencie v rámci ds:SignedInfo musia byť referenciami na ds:Manifest elementy,
 
 - **DONE** overenie obsahu ds:KeyInfo:
-  - ESTE POZRIET musí mať Id atribút,
+  - **DONE** musí mať Id atribút,
   - **DONE** musí obsahovať ds:X509Data, ktorý obsahuje elementy: ds:X509Certificate, ds:X509IssuerSerial, ds:X509SubjectName,
   - **DONE** hodnoty elementov ds:X509IssuerSerial a ds:X509SubjectName súhlasia s príslušnými hodnatami v certifikáte, ktorý sa nachádza v ds:X509Certificate,
 
