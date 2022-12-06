@@ -34,7 +34,7 @@
   - **DONE** musí obsahovať dva elementy ds:SignatureProperty pre xzep:SignatureVersion a xzep:ProductInfos,
   - **DONE** obidva ds:SignatureProperty musia mať atribút Target nastavený na ds:Signature,
 
-- **TODO** overenie ds:Manifest elementov:
+- **DONE** overenie ds:Manifest elementov:
   - každý ds:Manifest element musí mať Id atribút,
   - ds:Transforms musí byť z množiny podporovaných algoritmov pre daný element podľa profilu XAdES_ZEP,
   - ds:DigestMethod – musí obsahovať URI niektorého z podporovaných algoritmov podľa profilu XAdES_ZEP,
